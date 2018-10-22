@@ -176,7 +176,7 @@ void eval(char *cmdline)
     int bg;                     /* Should job run in bg or fg */
     pid_t pid;                  /* Process ID */
 
-    strcpy(buf, cmdline);
+    strcpy(&buf, cmdline);
     bg = parseline(buf, argv);
     if (argv[0] == NULL)
         return; /* Ignore Empty Lines */
@@ -196,9 +196,6 @@ void eval(char *cmdline)
             fprintf(stdout, "%d %s", pid, cmdline);
         }
         */
-    } else {
-        execve(argv[0], argv, environ);
-        exit(0);
     }
 
     return;
@@ -267,12 +264,29 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
-    if (strcmp(argv[1], "quit") == 0 ||
-        strcmp(argv[1], "jobs") == 0 ||
-        strcmp(argv[1], "fg") == 0 ||
-        strcmp(argv[1], "bg") == 0
-       )
+    if (strcmp(argv[0], "quit") == 0 ||
+        strcmp(argv[0], "jobs") == 0 ||
+        strcmp(argv[0], "fg") == 0 ||
+        strcmp(argv[0], "bg") == 0
+      ) {
+        /* Quit the shell */
+        if (strcmp(argv[0], "quit") == 0) {
+            exit(0);
+        }
+        /* Print out process ids and their job process name */
+        else if (strcmp(argv[0], "jobs")) {
+            
+        /* Run the most recent process in the fg that was placed in the bg*/
+        } else if (strcmp(argv[0], "fg")) {
+
+        /* Run a process in the bg */
+        } else {
+
+        }
+
         return 1;
+    }
+
     return 0;     /* not a builtin command */
 }
 
