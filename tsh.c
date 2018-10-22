@@ -189,9 +189,12 @@ void eval(char *cmdline)
         }
 
         if (!bg) {
+            addjob(jobs, pid, 2, cmdline);
             waitfg(pid);
+            deletejob(jobs, pid);
         } else {
-            fprintf(stdout, "%d %s", pid, cmdline);
+            addjob(jobs, pid, 1, cmdline);
+            listjobs(jobs);
         } 
     }
 
@@ -272,7 +275,7 @@ int builtin_cmd(char **argv)
         }
         /* Print out process ids and their job process name */
         else if (strcmp(argv[0], "jobs")) {
-
+            listjobs(jobs);
         /* Run the most recent process in the fg that was placed in the bg*/
         } else if (strcmp(argv[0], "fg")) {
 
