@@ -194,7 +194,7 @@ void eval(char *cmdline)
             deletejob(jobs, pid);
         } else {
             addjob(jobs, pid, 1, cmdline);
-            listjobs(jobs);
+            printf("[%d] (%d) %s", nextjid-1, pid, cmdline);
         } 
     }
 
