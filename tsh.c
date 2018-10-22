@@ -184,11 +184,11 @@ void eval(char *cmdline)
     if (!builtin_cmd(argv)) {
         /*
         if ((pid = Fork()) == 0) {
-            if (execve(argv[0], argv, environ) < 0) {
+        */  if (execve(argv[0], argv, environ) < 0) {
                 printf("%s: Command not found.\n", argv[0]);
                 exit(0);
             }
-        }
+      /*}
 
         if (!bg) {
             waitfg(pid);
@@ -275,7 +275,7 @@ int builtin_cmd(char **argv)
         }
         /* Print out process ids and their job process name */
         else if (strcmp(argv[0], "jobs")) {
-            
+
         /* Run the most recent process in the fg that was placed in the bg*/
         } else if (strcmp(argv[0], "fg")) {
 
