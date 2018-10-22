@@ -61,6 +61,7 @@ struct job_t jobs[MAXJOBS]; /* The job list */
 
 /* Here are the functions that you will implement */
 void eval(char *cmdline);
+int builtin_commands(char *argv);
 int builtin_cmd(char **argv);
 void do_bgfg(char **argv);
 void waitfg(pid_t pid);
@@ -170,13 +171,35 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
-    char *argv[MAXLINE];        /* Argument list execve() */
+    char **argv[MAXLINE];        /* Argument list execve() */
     char buf[MAXLINE];          /* Holds modified command line */
     int bg;                     /* Should job run in bg or fg */
     pid_t pid;                  /* Process ID */
 
     strcpy(buf, cmdline);
     bg = parseline(buf, argv);
+    if (argv[0] == NULL)
+        return; /* Ignore Empty Lines */
+
+    if (!builtin_cmd(argv)) {
+        /*
+        if ((pid = Fork()) == 0) {
+            if (execve(argv[0], argv, environ) < 0) {
+                printf("%s: Command not found.\n", argv[0]);
+                exit(0);
+            }
+        }
+
+        if (!bg) {
+            waitfg(pid);
+        } else {
+            fprintf(stdout, "%d %s", pid, cmdline);
+        }
+        */
+    } else {
+        execve(argv[0], argv, environ);
+        exit(0);
+    }
 
     return;
 }
@@ -244,6 +267,12 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
+    if (strcmp(argv[1], "quit") == 0 ||
+        strcmp(argv[1], "jobs") == 0 ||
+        strcmp(argv[1], "fg") == 0 ||
+        strcmp(argv[1], "bg") == 0
+       )
+        return 1;
     return 0;     /* not a builtin command */
 }
 
@@ -517,6 +546,3 @@ void sigquit_handler(int sig)
     printf("Terminating after receipt of SIGQUIT signal\n");
     exit(1);
 }
-
-
-
