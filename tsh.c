@@ -182,20 +182,17 @@ void eval(char *cmdline)
         return; /* Ignore Empty Lines */
 
     if (!builtin_cmd(argv)) {
-        /*
-        if ((pid = Fork()) == 0) {
-        */  if (execve(argv[0], argv, environ) < 0) {
-                printf("%s: Command not found.\n", argv[0]);
-                exit(0);
-            }
-      /*}
+        pid = fork();  
+        if (pid == 0 && execve(argv[0], argv, environ) < 0) {
+            printf("%s: Command not found.\n", argv[0]);
+            exit(0);
+        }
 
         if (!bg) {
             waitfg(pid);
         } else {
             fprintf(stdout, "%d %s", pid, cmdline);
-        }
-        */
+        } 
     }
 
     return;
