@@ -1,7 +1,12 @@
 /* 
  * tsh - A tiny shell program with job control
  * 
- * <Put your name and login ID here>
+ * Anthony Mendez
+ * anthonymende@umass.edu
+ *
+ * Joshua Howell
+ * jhowell@umass.edu
+ *
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -165,6 +170,14 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
+    char *argv[MAXLINE];        /* Argument list execve() */
+    char buf[MAXLINE];          /* Holds modified command line */
+    int bg;                     /* Should job run in bg or fg */
+    pid_t pid;                  /* Process ID */
+
+    strcpy(buf, cmdline);
+    bg = parseline(buf, argv);
+
     return;
 }
 
