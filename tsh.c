@@ -62,6 +62,7 @@ struct job_t jobs[MAXJOBS]; /* The job list */
 /* Here are the functions that you will implement */
 void eval(char *cmdline);
 int builtin_commands(char *argv);
+pid_t Fork(void);
 int builtin_cmd(char **argv);
 void do_bgfg(char **argv);
 void waitfg(pid_t pid);
@@ -265,7 +266,7 @@ int parseline(const char *cmdline, char **argv)
 pid_t Fork(void)
 {
     pid_t pid;
-    if((pid = fork() < 0)
+    if((pid = fork()) < 0)
         unix_error("Fork error");
     return pid;
 }
@@ -315,6 +316,9 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+    int status;
+    if(waitpid(pid, &status, 0) < 0)
+        unix_error("waitfg: waitpid error");
     return;
 }
 
