@@ -182,7 +182,7 @@ void eval(char *cmdline)
         return; /* Ignore Empty Lines */
 
     if (!builtin_cmd(argv)) {
-        pid = fork();  
+        pid = Fork();  
         if (pid == 0 && execve(argv[0], argv, environ) < 0) {
             printf("%s: Command not found.\n", argv[0]);
             exit(0);
@@ -256,6 +256,18 @@ int parseline(const char *cmdline, char **argv)
 	argv[--argc] = NULL;
     }
     return bg;
+}
+
+/*
+ * Fork - Forks the current process and checks if it returns an error.
+ * Returns the process id
+ */
+pid_t Fork(void)
+{
+    pid_t pid;
+    if((pid = fork() < 0)
+        unix_error("Fork error");
+    return pid;
 }
 
 /* 
