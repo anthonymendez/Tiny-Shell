@@ -91,6 +91,15 @@ void unix_error(char *msg);
 void app_error(char *msg);
 typedef void handler_t(int);
 handler_t *Signal(int signum, handler_t *handler);
+void sigquit_handler(int);
+static void sio_ltoa(long, char[], int);
+ssize_t Sio_putl(long);
+ssize_t Sio_puts(char[]);
+void Sio_error(char[]);
+static size_t sio_strlen(char[]);
+ssize_t sio_puts(char[]);
+ssize_t sio_putl(long);
+void sio_error(char[]);
 
 /*
  * main - The shell's main routine 
@@ -346,7 +355,20 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
-    return;
+    int olderrno = errno;
+    sigset_t mask_all, prev_all;
+    pid_t pid;
+
+    sigfillset(&mask_all);
+    while ((pid = waitpid(-1, NULL, 0)) > 0) {
+        sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+        deletejob(&jobs, pid);
+        sigprocmask(SIG_SETMASK, &prev_all, NULL);
+    }
+    if (errno != ECHILD) {
+        Sio_error("waitpid error");
+    }
+    errno = olderrno;
 }
 
 /*
@@ -576,4 +598,81 @@ void sigquit_handler(int sig)
 {
     printf("Terminating after receipt of SIGQUIT signal\n");
     exit(1);
+}
+
+/* SIO Wrapper Functions */
+
+static void sio_reverse(char s[])
+{
+    int c, i, j;
+
+    for (i = 0, j = strlen(s)-1; i < j; i++, j--) {
+        c = s[i];
+        s[i] = s[j];
+        s[j] = c;
+    }
+}
+
+static void sio_ltoa(long v, char s[], int b) 
+{
+    int c, i = 0;
+    
+    do {  
+        s[i++] = ((c = (v % b)) < 10)  ?  c + '0' : c - 10 + 'a';
+    } while ((v /= b) > 0);
+    s[i] = '\0';
+    sio_reverse(s);
+}
+
+ssize_t Sio_putl(long v)
+{
+    ssize_t n;
+  
+    if ((n = sio_putl(v)) < 0)
+        sio_error("Sio_putl error");
+    return n;
+}
+
+ssize_t Sio_puts(char s[])
+{
+    ssize_t n;
+  
+    if ((n = sio_puts(s)) < 0)
+        sio_error("Sio_puts error");
+    return n;
+}
+
+void Sio_error(char s[])
+{
+    sio_error(s);
+}
+
+/* SIO Functions */
+
+static size_t sio_strlen(char s[])
+{
+    int i = 0;
+
+    while (s[i] != '\0')
+        ++i;
+    return i;
+}
+
+ssize_t sio_puts(char s[]) /* Put string */
+{
+    return write(STDOUT_FILENO, s, sio_strlen(s)); //line:csapp:siostrlen
+}
+
+ssize_t sio_putl(long v) /* Put long */
+{
+    char s[128];
+    
+    sio_ltoa(v, s, 10); /* Based on K&R itoa() */  //line:csapp:sioltoa
+    return sio_puts(s);
+}
+
+void sio_error(char s[]) /* Put error message and exit */
+{
+    sio_puts(s);
+    _exit(1);                                      //line:csapp:sioexit
 }
