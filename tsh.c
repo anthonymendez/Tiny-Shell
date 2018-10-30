@@ -190,11 +190,11 @@ void eval(char *cmdline)
         }
 
         if (!bg) {
-            addjob(jobs, pid, 2, cmdline);
+            addjob(jobs, pid, FG, cmdline);
             waitfg(pid);
             deletejob(jobs, pid);
         } else {
-            addjob(jobs, pid, 1, cmdline);
+            addjob(jobs, pid, BG, cmdline);
             printf("[%d] (%d) %s", nextjid-1, pid, cmdline);
         } 
     }
@@ -287,14 +287,11 @@ int builtin_cmd(char **argv)
             exit(0);
         }
         /* Print out process ids and their job process name */
-        else if (strcmp(argv[0], "jobs")) {
+        else if (strcmp(argv[0], "jobs") == 0) {
             listjobs(jobs);
         /* Run the most recent process in the fg that was placed in the bg*/
-        } else if (strcmp(argv[0], "fg")) {
-
-        /* Run a process in the bg */
-        } else {
-
+        }  else {
+            do_bgfg(argv[0]);
         }
 
         return 1;
@@ -308,7 +305,11 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
-    return;
+    if(strcmp(argv[0], "bg") == 0) {
+        
+    } else {
+        
+    }
 }
 
 /* 
