@@ -355,7 +355,14 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
-    int olderrno = errno;
+    int old_errno = errno;			// Save initial errno
+	pid_t int_pid = fgpid(jobs);	// Get foreground PID
+	kill(-int_pid, SIGINT);			// Send SIGINT
+	int int_jid = pid2jid(int_pid);	// For printing
+	deletejob(jobs, int_pid);		// Remove associated job
+	printf("Job [%d] (%d) terminated by signal %d\n", int_jid, int_pid, sig);
+
+	/* TODO: remove if useless (anthony's WIP code)
     sigset_t mask_all, prev_all;
     pid_t pid;
 
@@ -368,7 +375,10 @@ void sigint_handler(int sig)
     if (errno != ECHILD) {
         Sio_error("waitpid error");
     }
-    errno = olderrno;
+	*/
+
+    errno = old_errno; // Restore initial errno
+	return;
 }
 
 /*
@@ -378,6 +388,16 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
+	int old_errno = errno;								// Save initial errno
+	pid_t tstp_pid = fgpid(jobs);						// Get foreground PID
+	struct job_t* tstp_job = getjobpid(jobs, tstp_pid);	// Get associated job
+	tstp_job->state = ST;								// Set job state
+	kill(-tstp_pid, SIGTSTP);							// Send SIGTSTP
+	printf("Job [%d] (%d) stopped by signal %d\n", tstp_job->jid, tstp_pid, sig);
+
+	printf("[debug] tstp handler: pid:%d, jid:%d, state:%d\n", tstp_pid, tstp_job->jid, tstp_job->state); //todo: remove
+
+	errno = old_errno; // Restore initial errno
     return;
 }
 
@@ -452,7 +472,8 @@ int deletejob(struct job_t *jobs, pid_t pid)
 
     for (i = 0; i < MAXJOBS; i++) {
 	if (jobs[i].pid == pid) {
-	    clearjob(&jobs[i]);
+		printf("[debug] deleting job [%d]\n", jobs[i].jid); //todo: remove
+		clearjob(&jobs[i]);
 	    nextjid = maxjid(jobs)+1;
 	    return 1;
 	}
@@ -533,6 +554,7 @@ void listjobs(struct job_t *jobs)
 	    }
 	    printf("%s", jobs[i].cmdline);
 	}
+	printf("[debug] listing: job at i=%d: pid=%d, jid=%d, state=%d\n", i, jobs[i].pid, jobs[i].jid, jobs[i].state); //todo: remove
     }
 }
 /******************************
