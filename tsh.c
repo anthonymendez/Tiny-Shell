@@ -181,14 +181,14 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
-    char* argv[MAXLINE];        /* Argument list execve() */
-    char buf[MAXLINE];          /* Holds modified command line */
+    char* argv[MAXLINE];										// Argument list execve()
+    char buf[MAXLINE];											// Holds modified command line
     strcpy(buf, cmdline);
     int bg = parseline(buf, argv);
-    if (argv[0] == NULL)
-        return; /* Ignore Empty Lines */
+    if (argv[0] == NULL)										// Ignore Empty Lines
+        return;
 
-    if (!builtin_cmd(argv)) {	// If cmd is built in, run it. Otherwise:...
+    if (!builtin_cmd(argv)) {									// If cmd is built in, run it. Otherwise:...
 		// Block all while creating process and job
 		sigset_t eval_mask, eval_prev_mask;
 		sigemptyset(&eval_mask);
@@ -197,8 +197,8 @@ void eval(char *cmdline)
 		sigaddset(&eval_mask, SIGTSTP);
 		sigprocmask(SIG_BLOCK, &eval_mask, &eval_prev_mask);
 
-        pid_t chld_pid = Fork();			// Create child process for command to run in
-        if (chld_pid == 0) {	// Code for child process
+        pid_t chld_pid = Fork();								// Create child process for command to run in
+        if (chld_pid == 0) {									// Code for child process
 			setpgrp();											// Set child as its own group (==setpgid(0,0))
 			sigprocmask(SIG_SETMASK, &eval_prev_mask, NULL);	// Unblock for child
 			int execve_err = execve(argv[0], argv, environ);	// Execute command
@@ -311,9 +311,8 @@ int builtin_cmd(char **argv)
         /* Print out process ids and their job process name */
         else if (strcmp(argv[0], "jobs") == 0) {
             listjobs(jobs);
-        /* Run the most recent process in the fg that was placed in the bg*/
-        }  else {
-            //do_bgfg(argv[0]);
+        /* Run the most recent process in the fg that was placed in the bg */
+        } else {
 			do_bgfg(argv);
         }
 
@@ -328,9 +327,33 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
-    if(strcmp(argv[0], "bg") == 0) {
+	if(argv[1] == NULL) {			// bg and fg must have an argument
+		printf("%s command requires PID or %%jobid argument\n", argv[0]);
+		return;
+	} else if(!(isdigit(argv[1][0]) || 
+			  strcmp(argv[1][0]) == 0)) {
+		printf("%s: argument must be a PID or %%jobid\n",argv[0]);
+		return;
+	}
+
+    struct job_t* job;
+	if(isdigit(argv[1][0])) {			// Get job by PID
+		job = getjobpid(jobs, atoi(argv[1]));
+		if(job == NULL) {
+			printf("(%d): No such process\n", atoi(argv[1]));
+			return;
+		}
+	} else {
+		job = getjobjid(jobs, atoi(&argv[1][1]));
+		if(job == NULL) {
+			printf("%s: No such job\n", argv[1]);
+			return;
+		}
+	}
+
+	if(strcmp(argv[0], "bg") == 0) {	// Background
         
-    } else {
+    } else {							// Foreground
         
     }
 }
@@ -353,11 +376,6 @@ void waitfg(pid_t pid)
 			sleep(1);				// Wait one second
 		}
 	}
-	/* TODO: remove if useless (anthony's code)
-    int status;
-    if(waitpid(pid, &status, 0) < 0)
-        unix_error("waitfg: waitpid error");
-	*/
     return;
 }
 
@@ -407,25 +425,6 @@ void sigint_handler(int sig)
 
 	pid_t int_pid = fgpid(jobs);	// Get foreground PID
 	kill(-int_pid, SIGINT);			// Send SIGINT
-	/* Handled in sigchld now...
-	deletejob(jobs, int_pid);		// Remove associated job
-	printf("Job [%d] (%d) terminated by signal %d\n", int_jid, int_pid, sig);
-	*/
-
-	/* TODO: remove if useless (anthony's WIP code)
-    sigset_t mask_all, prev_all;
-    pid_t pid;
-
-    sigfillset(&mask_all);
-    while ((pid = waitpid(-1, NULL, 0)) > 0) {
-        sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
-        deletejob(&jobs, pid);
-        sigprocmask(SIG_SETMASK, &prev_all, NULL);
-    }
-    if (errno != ECHILD) {
-        Sio_error("waitpid error");
-    }
-	*/
 
     errno = old_errno; // Restore initial errno
 	sigprocmask(SIG_SETMASK, &int_prev_mask, NULL);
@@ -442,11 +441,6 @@ void sigtstp_handler(int sig)
 	int old_errno = errno;								// Save initial errno
 	pid_t tstp_pid = fgpid(jobs);						// Get foreground PID
 	kill(-tstp_pid, SIGTSTP);							// Send SIGTSTP
-	/* Handled in sigchld now...
-	struct job_t* tstp_job = getjobpid(jobs, tstp_pid);	// Get associated job
-	tstp_job->state = ST;								// Set job state
-	printf("Job [%d] (%d) stopped by signal %d\n", tstp_job->jid, tstp_pid, sig);
-	*/
 
 	errno = old_errno; // Restore initial errno
     return;
