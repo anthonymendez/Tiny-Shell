@@ -201,7 +201,7 @@ void eval(char *cmdline)
         if (!bg) {
             addjob(jobs, pid, FG, cmdline);
             waitfg(pid);
-            deletejob(jobs, pid);
+            //deletejob(jobs, pid);
         } else {
             addjob(jobs, pid, BG, cmdline);
             printf("[%d] (%d) %s", nextjid-1, pid, cmdline);
@@ -326,9 +326,27 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+	printf("[debug] waitfg: called on %d\n", pid);
+	while(1) {
+		struct job_t* job = getjobpid(jobs, pid);
+		if(job == NULL){			// No job found with specified PID
+			printf("[debug] waitfg: no job with pid %d! returning...\n", pid);
+			return;
+		}
+		while(1) {					// While the job is in the foreground
+			if(job->pid != pid)		// Job doesn't correspond to specified PID anymore
+				break;
+			if(job->state != FG){printf("[debug] waitfg: done, not fg\n");	// Job with specified PID is no longer the foreground process
+				return;}
+			sleep(1);				// Wait one second
+		}
+	}
+	/* TODO: remove if useless (anthony's code)
     int status;
     if(waitpid(pid, &status, 0) < 0)
         unix_error("waitfg: waitpid error");
+	*/
+	//printf("[debug] waitfg: done, ??\n");
     return;
 }
 
@@ -345,6 +363,25 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig) 
 {
+	printf("[debug] sigchld called\n");
+	int chld_status = -1;
+	while(1) {
+		pid_t wait_pid = waitpid((pid_t) -1, &chld_status, (WUNTRACED | WNOHANG));
+		if(wait_pid < 1)	// If interrupted or no status available, stop handler
+			break;
+
+		if(WIFSTOPPED(chld_status)) {			// Child stopped
+			printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(wait_pid), wait_pid, WSTOPSIG(chld_status));
+			getjobpid(jobs, wait_pid)->state = ST;	// Set job state
+		} else if(WIFSIGNALED(chld_status)) {	// Child terminated by uncaught signal
+			printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(wait_pid), wait_pid, WTERMSIG(chld_status));
+			deletejob(jobs, wait_pid);			// Remove associated job
+		} else if(WIFEXITED(chld_status)) {		// Child exited "normally"
+			printf("[debug] sigchld found normal exit [%d] (%d) estat:%d\n", pid2jid(wait_pid), wait_pid, WEXITSTATUS(chld_status));
+			deletejob(jobs, wait_pid);			// Remove associated job
+		} else
+			printf("[debug] sigchld no recognised signal! ??\n");
+	}
     return;
 }
 
@@ -355,12 +392,19 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
+	sigset_t int_mask, int_prev_mask;
+	sigemptyset(&int_mask);
+	sigaddset(&int_mask, SIGINT);
+	sigprocmask(SIG_BLOCK, &int_mask, &int_prev_mask);
     int old_errno = errno;			// Save initial errno
+
 	pid_t int_pid = fgpid(jobs);	// Get foreground PID
 	kill(-int_pid, SIGINT);			// Send SIGINT
 	int int_jid = pid2jid(int_pid);	// For printing
+	/* Handled in sigchld now...
 	deletejob(jobs, int_pid);		// Remove associated job
 	printf("Job [%d] (%d) terminated by signal %d\n", int_jid, int_pid, sig);
+	*/
 
 	/* TODO: remove if useless (anthony's WIP code)
     sigset_t mask_all, prev_all;
@@ -378,6 +422,7 @@ void sigint_handler(int sig)
 	*/
 
     errno = old_errno; // Restore initial errno
+	sigprocmask(SIG_SETMASK, &int_prev_mask, NULL);
 	return;
 }
 
@@ -391,9 +436,11 @@ void sigtstp_handler(int sig)
 	int old_errno = errno;								// Save initial errno
 	pid_t tstp_pid = fgpid(jobs);						// Get foreground PID
 	struct job_t* tstp_job = getjobpid(jobs, tstp_pid);	// Get associated job
-	tstp_job->state = ST;								// Set job state
 	kill(-tstp_pid, SIGTSTP);							// Send SIGTSTP
+	/* Handled in sigchld now...
+	tstp_job->state = ST;								// Set job state
 	printf("Job [%d] (%d) stopped by signal %d\n", tstp_job->jid, tstp_pid, sig);
+	*/
 
 	printf("[debug] tstp handler: pid:%d, jid:%d, state:%d\n", tstp_pid, tstp_job->jid, tstp_job->state); //todo: remove
 
@@ -452,7 +499,7 @@ int addjob(struct job_t *jobs, pid_t pid, int state, char *cmdline)
 	    if (nextjid > MAXJOBS)
 		nextjid = 1;
 	    strcpy(jobs[i].cmdline, cmdline);
-  	    if(verbose){
+  	    if(1){// TODO replace with this: if(verbose){
 	        printf("Added job [%d] %d %s\n", jobs[i].jid, jobs[i].pid, jobs[i].cmdline);
             }
             return 1;
@@ -472,7 +519,7 @@ int deletejob(struct job_t *jobs, pid_t pid)
 
     for (i = 0; i < MAXJOBS; i++) {
 	if (jobs[i].pid == pid) {
-		printf("[debug] deleting job [%d]\n", jobs[i].jid); //todo: remove
+		printf("[debug] deleting job [%d] (%d)\n", jobs[i].jid, jobs[i].pid); //todo: remove
 		clearjob(&jobs[i]);
 	    nextjid = maxjid(jobs)+1;
 	    return 1;
@@ -554,8 +601,7 @@ void listjobs(struct job_t *jobs)
 	    }
 	    printf("%s", jobs[i].cmdline);
 	}
-	printf("[debug] listing: job at i=%d: pid=%d, jid=%d, state=%d\n", i, jobs[i].pid, jobs[i].jid, jobs[i].state); //todo: remove
-    }
+	}
 }
 /******************************
  * end job list helper routines
