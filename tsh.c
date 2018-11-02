@@ -331,7 +331,7 @@ void do_bgfg(char **argv)
 		printf("%s command requires PID or %%jobid argument\n", argv[0]);
 		return;
 	} else if(!(isdigit(argv[1][0]) || 
-			  strcmp(argv[1][0]) == 0)) {
+			  argv[1][0] == '%')) {
 		printf("%s: argument must be a PID or %%jobid\n",argv[0]);
 		return;
 	}
@@ -352,10 +352,14 @@ void do_bgfg(char **argv)
 	}
 
 	if(strcmp(argv[0], "bg") == 0) {	// Background
-        
-    } else {							// Foreground
-        
-    }
+		kill(-(job->pid), SIGCONT);
+		job->state = BG;
+		printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
+	} else {							// Foreground
+		kill(-(job->pid), SIGCONT);
+		job->state = FG;
+		waitfg(job->pid);
+	}
 }
 
 /* 
