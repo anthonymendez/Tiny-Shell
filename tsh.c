@@ -327,6 +327,7 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
+    /* Check if given argument is in a valid format */
 	if(argv[1] == NULL) {			// bg and fg must have an argument
 		printf("%s command requires PID or %%jobid argument\n", argv[0]);
 		return;
@@ -336,6 +337,7 @@ void do_bgfg(char **argv)
 		return;
 	}
 
+    /* Check if given PID/JID is valid */
     struct job_t* job;
 	if(isdigit(argv[1][0])) {			// Get job by PID
 		job = getjobpid(jobs, atoi(argv[1]));
@@ -351,6 +353,7 @@ void do_bgfg(char **argv)
 		}
 	}
 
+    /* Perform operations based on bg/fg command */
 	if(strcmp(argv[0], "bg") == 0) {	// Background
 		kill(-(job->pid), SIGCONT);
 		job->state = BG;
